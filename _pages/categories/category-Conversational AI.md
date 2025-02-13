@@ -1,9 +1,9 @@
 ---
 title: "Conversational AI"
 layout: category
-permalink: /categories/categories1/
+permalink: /categories/Conversational AI/
 author_profile: true
-taxonomy: Categories1
+taxonomy: Conversational AI
 sidebar:
   nav: "categories"
 ---
