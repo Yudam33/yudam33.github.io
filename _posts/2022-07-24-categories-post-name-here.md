@@ -1,13 +1,13 @@
 ---
 title: ""
-excerpt: "본문의 주요 내용을 여기에 입력하세요"
+excerpt: "AI speaker agent"
 
 categories:
-  - Categories1
+  - Categories3
 tags:
   - [tag1, tag2]
 
-permalink: /Conversational AI/AI speaker agent/
+permalink: /Categories3/AI speaker agent/
 
 toc: true
 toc_sticky: true
