@@ -3,11 +3,11 @@ title: "AI speaker agent"
 excerpt: "AI speaker agent"
 
 categories:
-  - Categories3
+  - categories1
 tags:
   - [tag1, tag2]
 
-permalink: /Categories3/AI speaker agent/
+permalink: /categories1/AI speaker agent/
 
 toc: true
 toc_sticky: true
