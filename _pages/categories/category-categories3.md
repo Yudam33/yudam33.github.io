@@ -1,9 +1,9 @@
 ---
-title: "Categories3"
+title: "LLMs"
 layout: category
-permalink: /categories/categories3/
+permalink: /categories/LLMs/
 author_profile: true
-taxonomy: Categories3
+taxonomy: LLMs
 sidebar:
   nav: "categories"
 ---
