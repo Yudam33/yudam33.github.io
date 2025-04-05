@@ -1,0 +1,533 @@
+---
+title: "Flask REST API connecting"
+excerpt: "Structure of Flask app, REST API, HTTP concept and application"
+
+categories:
+  - categories1
+tags:
+  - [tag1, tag2]
+
+permalink: /categories1/Flask REST API connecting/
+
+toc: true
+toc_sticky: true
+
+date: 2025-04-01
+last_modified_at: 2025-04-01
+---
+
+### 네트워크 관점에서 REST API의 핵심 개념
+
+1. REST API란?
+- Representational State Transfer의 약자
+- 웹의 기존 기술과 HTTP 프로토콜을 활용한 통신 아키텍처
+- 클라이언트-서버 간 데이터 교환 표준
+1. HTTP 메서드와 의미
+
+```
+GET    : 데이터 조회
+POST   : 새로운 데이터 생성
+PUT    : 기존 데이터 전체 수정
+PATCH  : 기존 데이터 일부 수정
+DELETE : 데이터 삭제
+
+```
+
+1. HTTP 상태 코드
+
+```
+200 OK             : 요청 성공
+201 Created        : 리소스 생성 성공
+400 Bad Request    : 잘못된 요청
+401 Unauthorized   : 인증 필요
+403 Forbidden      : 접근 권한 없음
+404 Not Found      : 리소스 없음
+500 Internal Error : 서버 내부 오류
+
+```
+
+1. API 통신 과정
+
+```
+클라이언트 요청 → 서버 처리 → 응답 반환
+     ↓             ↓           ↓
+  HTTP 메서드   비즈니스 로직   JSON 데이터
+
+```
+
+1. JSON 데이터 구조
+
+```json
+{
+  "user": {
+    "id": 1,
+    "username": "example",
+    "email": "user@example.com"
+  }
+}
+
+```
+
+1. API 보안 핵심 요소
+- HTTPS 사용
+- 인증 토큰 (JWT)
+- 데이터 검증
+- 요청/응답 암호화
+1. 네트워크 관점 API 흐름
+
+```
+Client (브라우저/앱)
+   ↓ HTTP 요청
+Web Server (Nginx/Apache)
+   ↓ 요청 라우팅
+WSGI Server (Gunicorn/uWSGI)
+   ↓ 애플리케이션 처리
+Flask Application
+   ↓ 데이터베이스 상호작용
+Database
+   ↓ 결과 반환
+Flask Application
+   ↓ JSON 응답 생성
+WSGI Server
+   ↓ 응답 전송
+Web Server
+   ↓ 클라이언트에 응답
+Client
+
+```
+
+1. API 테스트 도구
+- Postman
+- cURL
+- Swagger
+1. 네트워크 프로토콜 계층
+
+```
+애플리케이션 계층 (HTTP/HTTPS)
+   ↓
+전송 계층 (TCP/UDP)
+   ↓
+인터넷 계층 (IP)
+   ↓
+네트워크 인터페이스 계층
+
+```
+
+1. API 성능 고려사항
+- 캐싱
+- 압축
+- 최소한의 데이터 전송
+- 비동기 처리
+
+### 추가로 필요한 학습
+
+- HTTP 프로토콜 동작 원리
+- 네트워크 소켓 통신
+- 웹 보안
+- 마이크로서비스 아키텍처
+
+---
+
+### 프로젝트에 적용
+
+<aside>
+💡
+
+현재 상황 : file 기반으로 연결된 Flask Application 을 REST API 기반으로 수정함
+
+</aside>
+
+1. 현재 프로젝트 구조
+
+```bash
+your_project/
+│
+├── app.py             # 메인 애플리케이션 파일
+├── models.py          # 데이터베이스 모델 정의
+├── views.py           # API 라우트 정의
+├── config.py          # 설정 파일
+│
+├── scripts/           # 유틸리티 및 디버깅 스크립트
+│   ├── check_users.py
+│   ├── create_db.py
+│   └── debug_app.py
+│
+├── tests/             # 테스트 관련 파일 (선택사항)
+│
+├── requirements.txt   # 의존성 파일
+└── README.md          # 프로젝트 설명 파일
+```
+
+1. 현재 모델 
+
+```python
+# models.py
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+
+db = SQLAlchemy()
+
+class User(db.Model):
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(20), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+
+    def set_password(self, password):
+        self.password = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password, password)
+
+```
+
+1. REST API 엔드포인트 추가 ([views.py](http://views.py/))
+
+```python
+from flask import Blueprint, jsonify, request
+from models import db, User
+from werkzeug.security import generate_password_hash
+
+# API 블루프린트 생성
+api_routes = Blueprint('api', __name__, url_prefix='/api')
+
+# 사용자 목록 API
+@api_routes.route('/users', methods=['GET'])
+def get_users():
+    users = User.query.all()
+    user_list = []
+    for user in users:
+        user_data = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email
+        }
+        user_list.append(user_data)
+    return jsonify(user_list), 200
+
+# 사용자 생성 API
+@api_routes.route('/users', methods=['POST'])
+def create_user():
+    data = request.get_json()
+
+    # 데이터 검증
+    if not data or not data.get('username') or not data.get('email') or not data.get('password'):
+        return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
+
+    # 중복 사용자 확인
+    existing_user = User.query.filter(
+        (User.username == data['username']) |
+        (User.email == data['email'])
+    ).first()
+
+    if existing_user:
+        return jsonify({'error': '이미 존재하는 사용자입니다.'}), 400
+
+    # 새 사용자 생성
+    new_user = User(
+        username=data['username'],
+        email=data['email']
+    )
+    new_user.set_password(data['password'])
+
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({
+            'id': new_user.id,
+            'username': new_user.username,
+            'email': new_user.email
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': '사용자 생성 중 오류 발생', 'details': str(e)}), 500
+
+# 특정 사용자 조회 API
+@api_routes.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+
+    return jsonify({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email
+    }), 200
+
+# 사용자 정보 수정 API
+@api_routes.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+
+    data = request.get_json()
+
+    # 선택적 업데이트
+    if 'username' in data:
+        user.username = data['username']
+
+    if 'email' in data:
+        user.email = data['email']
+
+    try:
+        db.session.commit()
+        return jsonify({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': '사용자 업데이트 중 오류 발생', 'details': str(e)}), 500
+
+# 사용자 삭제 API
+@api_routes.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'message': '사용자 삭제 성공'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': '사용자 삭제 중 오류 발생', 'details': str(e)}), 500
+
+```
+
+1. [app.py](http://app.py/) 수정
+
+```python
+from flask import Flask
+from config import Config
+from models import db
+from views import main_routes, api_routes  # API 라우트 추가
+
+def create_app():
+    app = Flask(__name__)
+
+    # config.py의 설정 로드
+    app.config.from_object(Config)
+
+    # SQLAlchemy 초기화
+    db.init_app(app)
+
+    # 블루프린트 등록
+    app.register_blueprint(main_routes)
+    app.register_blueprint(api_routes)  # API 블루프린트 추가
+
+    # 데이터베이스 테이블 생성
+    with app.app_context():
+        db.create_all()
+
+    return app
+
+# 앱 생성
+app = create_app()
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+```
+
+- 추가 API 테스트 방법:
+1. Postman 사용
+2. cURL 명령어
+
+```bash
+# 사용자 생성
+curl -X POST <http://localhost:5000/api/users> \\
+     -H "Content-Type: application/json" \\
+     -d '{"username":"testuser", "email":"test@example.com", "password":"password123"}'
+
+# 사용자 목록 조회
+curl <http://localhost:5000/api/users>
+
+# 특정 사용자 조회
+curl <http://localhost:5000/api/users/1>
+
+# 사용자 정보 수정
+curl -X PUT <http://localhost:5000/api/users/1> \\
+     -H "Content-Type: application/json" \\
+     -d '{"username":"updateduser"}'
+
+# 사용자 삭제
+curl -X DELETE <http://localhost:5000/api/users/1>
+
+```
+
+### 기존 코드와의 차이
+
+기존 코드 (웹 애플리케이션):
+
+```python
+@main_routes.route("/register", methods=["GET", "POST"])
+def register():
+    # HTML 폼을 사용한 회원가입
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        # 사용자 생성 후 웹 페이지 리다이렉트
+        user = User(username=form.username.data, email=form.email.data)
+        user.set_password(form.password.data)
+
+        try:
+            db.session.add(user)
+            db.session.commit()
+            flash('회원가입 성공!', 'success')
+            return redirect(url_for('main.login'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'회원가입 중 오류 발생: {str(e)}', 'danger')
+
+    return render_template('register.html', form=form)
+
+```
+
+REST API 코드:
+
+```python
+@api_routes.route('/users', methods=['POST'])
+def create_user():
+    # JSON 데이터를 통한 사용자 생성
+    data = request.get_json()
+
+    # 데이터 검증
+    if not data or not data.get('username') or not data.get('email') or not data.get('password'):
+        return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
+
+    # 중복 사용자 확인
+    existing_user = User.query.filter(
+        (User.username == data['username']) |
+        (User.email == data['email'])
+    ).first()
+
+    if existing_user:
+        return jsonify({'error': '이미 존재하는 사용자입니다.'}), 400
+
+    # 새 사용자 생성
+    new_user = User(
+        username=data['username'],
+        email=data['email']
+    )
+    new_user.set_password(data['password'])
+
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({
+            'id': new_user.id,
+            'username': new_user.username,
+            'email': new_user.email
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': '사용자 생성 중 오류 발생', 'details': str(e)}), 500
+
+```
+
+**주요 변경 사항 및 그 의미**
+
+a. 요청 데이터 처리 방식
+
+- 웹 애플리케이션: HTML 폼 (`FlaskForm`)을 통한 데이터 수신
+- REST API: JSON 데이터 직접 수신 (`request.get_json()`)
+
+```python
+# 웹 애플리케이션
+form = RegistrationForm()
+username = form.username.data
+
+# REST API
+data = request.get_json()
+username = data['username']
+
+```
+
+b. 응답 방식
+
+- 웹 애플리케이션: 웹 페이지 렌더링 또는 리다이렉트
+
+```python
+return render_template('register.html', form=form)
+return redirect(url_for('main.login'))
+
+```
+
+- REST API: JSON 응답 및 HTTP 상태 코드 반환
+
+```python
+return jsonify({
+    'id': new_user.id,
+    'username': new_user.username
+}), 201  # Created 상태 코드
+
+```
+
+c. 데이터 검증
+
+- 웹 애플리케이션: WTForms 검증기 사용
+
+```python
+class RegistrationForm(FlaskForm):
+    username = StringField('Username', validators=[
+        DataRequired(),
+        Length(min=2, max=20)
+    ])
+
+```
+
+- REST API: 수동 데이터 검증
+
+```python
+if not data or not data.get('username'):
+    return jsonify({'error': '필수 정보 누락'}), 400
+
+```
+
+d. 오류 처리
+
+- 웹 애플리케이션: 플래시 메시지와 페이지 리다이렉트
+
+```python
+flash(f'회원가입 중 오류 발생: {str(e)}', 'danger')
+
+```
+
+- REST API: JSON 오류 응답과 상태 코드
+
+```python
+return jsonify({
+    'error': '사용자 생성 중 오류 발생',
+    'details': str(e)
+}), 500
+
+```
+
+- REST API로 전환의 장점
+    - 클라이언트-서버 분리
+    - 다양한 클라이언트(웹, 모바일 앱 등) 지원
+    - 표준화된 데이터 교환 방식
+    - 확장성과 유연성 향상
+- 네트워크 관점에서의 변화
+    - 상태 비저장(Stateless) 통신
+    - 표준 HTTP 메서드 활용
+    - 명확한 데이터 구조 (JSON)
+    - 일관된 오류 처리
+- 실습 및 학습 포인트:
+    - Postman으로 API 엔드포인트 테스트
+    - 다양한 HTTP 메서드 실험
+    - 데이터 검증 로직 개선
+    - 보안 및 인증 메커니즘 추가
+
+→ 웹 애플리케이션의 라우트를 REST API 엔드포인트로 변환함. 통신 방식과 데이터 처리 로직이 개선됨
